@@ -2,7 +2,7 @@
 
 using DataFrames, CSV
 using JuMP, Gurobi
-using LinearAlgebra, Random, Printf, StatsBase, CategoricalArrays
+using LinearAlgebra, Random, StatsBase, CategoricalArrays
 using Distributions
 using Combinatorics
 using Dates
@@ -125,10 +125,10 @@ println(now())
 println("Setting up model")
 flush(stdout)
 
-races = parse(Int64, ARGS[1])
+races = 25
 home = 1
-TH = parse(Int64, ARGS[2])
-DH = parse(Int64, ARGS[3])
+TH = 2
+DH = 6
 SH = races - 1 - 3 * TH - 2 * DH
 subloops = SH + DH + TH
 
@@ -144,12 +144,7 @@ flush(stdout)
 
 V = 1:races
 V_0 = 2:races
-# remove first and last races from V_0
-#ind_start = findall(x->x=="bahrain", df[!, "circuitRef"])[1] + 1
-#ind_start = parse(Int64, ARGS[6]) + 1
 ind_end = findall(x->x=="yas_marina", df[!, "circuitRef"])[1] + 1
-# remove ind_start and ind_end from V_0
-#V_1 = setdiff(V_0, [ind_start, ind_end])
 V_1 = setdiff(V_0, [ind_end])
 
 all_S = collect(Combinatorics.powerset(V_1, 2, length(V) - 2));
@@ -157,162 +152,16 @@ all_S = collect(Combinatorics.powerset(V_1, 2, length(V) - 2));
 println(now())
 println("Powerset created")
 flush(stdout)
-println(now())
-println("Setting up model")
-flush(stdout)
 
-# model = Model(Gurobi.Optimizer)
-# set_optimizer_attribute(model, "OutputFlag", 1)
-# set_optimizer_attribute(model, "Threads", parse(Int64, ARGS[4]))
-# #set_optimizer_attribute(model, "MIPGap", 0.005)
-# set_optimizer_attribute(model, "TimeLimit", parse(Int64, ARGS[5])*3600)
 
-# println(now())
-# println("Defining variables")
-# flush(stdout)
-
-# # variables
-# @variable(model, x[i in V, j in V], Bin)
-# #@variable(model, subloops >= 1)
-# @variable(model, single_header[i in V], Bin)
-# #@variable(model, double_header[i in V_0, j in V_0], Bin)
-# #@variable(model, triple_header[i in V_0, j in V_0, q in V_0], Bin)
-
-# println(now())
-# println("Constraint: Each circuit can only be visited once")
-# flush(stdout)
-
-# # constraints
-# # each circuit can only be visited once
-# @constraint(model, [j in V_0], sum(x[i, j] for i in V) == 1)
-# @constraint(model, [i in V_0], sum(x[i, j] for j in V) == 1) 
-
-# println(now())
-# println("Constraint: We cannot go from circuit to itself")
-# flush(stdout)
-
-# # we cannot go from a circuit to itself
-# @constraint(model, [i in V], x[i, i] == 0)
-
-# println(now())
-# println("Constraint: We must start and end at home $subloops times")
-
-# # we must start and end at home and the number of loops away from home is subloops
-# @constraint(model, sum(x[i, 1] for i in V_0) == subloops)
-# @constraint(model, sum(x[1, j] for j in V_0) == subloops)
-
-# # println(now())
-# # println("Constraint: Fix a connection from home to Sakhir and put all other connections to Sakhir to zero")
-# # flush(stdout)
-# # @constraint(model, x[home, ind_start] == 1)
-# # @constraint(model, [i in V_1], x[i, ind_start] == 0)
-
-# println(now())
-# println("Constraint: Fix a connection from Yas Marina to home and put all other connections from Yas Marina to zero")
-# flush(stdout)
-# @constraint(model, x[ind_end, home] == 1)
-# @constraint(model, [j in V_1], x[ind_end, j] == 0)
-
-# # println(now())
-# # println("Constraint: Make sure to not have a direct connection between Sakhir and Yas Marina")
-# # flush(stdout)
-# # @constraint(model, x[ind_start, ind_end] == 0)
-
-# println(now())
-# println("Constraint: Subloops must always connect to home")
-# flush(stdout)
-
-# # no subloops that do not connect to home
-# #p = Progress(length(all_S))
-# #Threads.@threads for S in all_S
-# for S in all_S
-#     @constraint(model, sum(x[i, j] for i in S, j in S) <= length(S) - 1)
-# #    next!(p)
-# end
-
-# println(now())
-# println("Constraint: At most $SH single headers")
-# flush(stdout)
-# @constraint(model, [i in V_0], single_header[i] <= x[home, i])
-# @constraint(model, [i in V_0], single_header[i] <= x[i, home])
-# @constraint(model, [i in V_0], single_header[i] >= x[home, i] + x[i, home] - 1)
-
-# # exactly SH single headers
-# @constraint(model, sum(single_header[i] for i in V_0) == SH)
-
-# #println(now())
-# #println("Constraint: At most $DH double headers")
-# #flush(stdout)
-
-# # define double_header as: 
-# # double_header[i, j] == 1 <=> x[home, i] == 1 and x[i, j] == 1 and x[j, home] == 1
-# #@constraint(model, [i in V_0, j in V_0], double_header[i, j] <= x[home, i])
-# #@constraint(model, [i in V_0, j in V_0], double_header[i, j] <= x[i, j])
-# #@constraint(model, [i in V_0, j in V_0], double_header[i, j] <= x[j, home])
-# #@constraint(model, [i in V_0, j in V_0], double_header[i, j] >= x[home, i] + x[i, j] + x[j, home] - 2)
-
-# # we want at most DH double-headers
-# #@constraint(model, sum(double_header[i, j] for i in V_0, j in V_0) <= DH)
-
-# #println(now())
-# #println("Constraint: At most $TH triple headers")
-# #flush(stdout)
-
-# # define triple_header
-# # triple_header[i, j] == 1 <=> x[home, i] == 1 and x[i, j] == 1 and x[j, q] == 1 and x[q, home] == 1
-# #@constraint(model, [i in V_0, j in V_0, q in V_0, r in V_0], triple_header[i, j, q] <= x[home, i])
-# #@constraint(model, [i in V_0, j in V_0, q in V_0, r in V_0], triple_header[i, j, q] <= x[i, j])
-# #@constraint(model, [i in V_0, j in V_0, q in V_0, r in V_0], triple_header[i, j, q] <= x[j, q])
-# #@constraint(model, [i in V_0, j in V_0, q in V_0, r in V_0], triple_header[i, j, q] <= x[q, home])
-# #@constraint(model, [i in V_0, j in V_0, q in V_0, r in V_0], triple_header[i, j, q] >= x[home, i] + x[i, j] + x[j, q] + x[q, home] - 3)
-
-# # we want at most TH triple-headers
-# #@constraint(model, sum(triple_header[i, j, q] for i in V_0, j in V_0, q in V_0, r in V_0) <= TH)
-
-# println(now())
-# println("Constraint: No more than three consecutive races")
-# flush(stdout)
-
-# # we want at most triple-headers, so no more than 3 consecutive races
-# @constraint(model, [i in V_0, j in V_0, q in V_0, r in V_0], x[home, i] + x[i, j] + x[j, q] + x[q, r] <= 3)
-
-# println(now())
-# println("Define objective function")
-# flush(stdout)
-
-# #objective
-# @objective(model, Min, sum(sum(x[i, j] * distance_matrix[i, j] for i in V) for j in V));
-
-# println(now())
-# println("Optimize model")
-# flush(stdout)
-
-# optimize!(model)
-
-# println(now())
-# println("Optimization done. Objective:")
-# obj = objective_value(model)
-# println(obj)
-# flush(stdout)
-
-# #file = open("/home/gbonheur/obj_values", "a")
-# #write(file, "start $ind_start : $obj \n")
-# #close(file)
-
-# x_opt = value.(x);
-
-# df_full = convert_jump_container_to_df(x_opt, dim_names=[:i, :j], value_col=:x)
-# df_1 = df_full[df_full.x .== 1, :]
-# CSV.write("/home/gbonheur/result_vrp.csv", df_1)
-
+# load vrp results for alpha = 0.15
+df_0 = CSV.read("/home/gbonheur/result_vrp_attend_loss/result_vrp_0.15.csv", DataFrame)
 
 # begin TSP
 
 println(now())
 println("Beginning TSP calculation")
 flush(stdout)
-
-df_1 = CSV.read("result_vrp.csv", DataFrame);
 
 function find_header(df, i)
     nodes = []
@@ -332,9 +181,9 @@ end
 
 # extract double and triple headers from df_manual
 sequences = Vector{Vector{Int}}()
-for i in 1:nrow(df_1)
-    if df_1[i, :i] == home
-        push!(sequences, find_header(df_1, i))
+for i in 1:nrow(df_0)
+    if df_0[i, :i] == home
+        push!(sequences, find_header(df_0, i))
     end
 end
 
@@ -350,7 +199,6 @@ for header in sequences
         push!(new, header[1:2])
         push!(new, header[2:3])
         # remove the original one
-        #deleteat!(sequences, findfirst(isequal(header), sequences))
     else
         push!(new, header)
     end
@@ -358,15 +206,52 @@ end
 
 sequences = new
 
+emissions_matrix_tsp = zeros(25, 25)
+
+#Iterate through distance matrices
+
+#If the [i,j] is in the sequences (i.e. they are consecutive), only 5 days to get there, automatically impose 5,000 km limit.
+#Otherwise, you have at least 12 days to get there, impose 12,000 km limit.
+
+#Driving 
+
+for i in 1:25
+    for j in 1:25
+        if([i, j] in sequences) #races are consecutive, only 5 days to get there
+            if(distance_matrix[i, j] <= 5000)
+                emissions_matrix_tsp[i,j]=distance_matrix[i,j]*62 #you can drive, 62 grams/km
+            else
+                emissions_matrix_tsp[i,j]=distance_matrix[i,j]*500 #you have to fly, 500 grams/km
+            end
+        else #races are not consecutive, at least 12 days to get there
+            if(distance_matrix[i, j] <= 8000)
+                emissions_matrix_tsp[i,j]=distance_matrix[i,j]*62 #you can drive, 62 grams/km
+            else
+                emissions_matrix_tsp[i,j]=distance_matrix[i,j]*500 #you have to fly, 500 grams/km
+            end
+        end
+    end       
+end
+
+attendance_loss_matrix = Matrix(CSV.read("attendance_loss_matrix.csv", DataFrame))
+
+# devide attendance loss by 2 for all races not in sequences
+for i in 1:25
+    for j in 1:25
+        if([i, j] in sequences)
+            attendance_loss_matrix[i, j] = attendance_loss_matrix[i, j]
+        else
+            attendance_loss_matrix[i, j] = attendance_loss_matrix[i, j] / 2
+        end
+    end
+end
+
 model2 = Model(Gurobi.Optimizer)
 set_optimizer_attribute(model2, "OutputFlag", 1)
 set_optimizer_attribute(model2, "Threads", 24)
-#set_optimizer_attribute(model2, "MIPGap", 0.005)
-#set_optimizer_attribute(model2, "TimeLimit", 600)
 
 # variables
 @variable(model2, x[i in V, j in V], Bin)
-#@variable(model2, subloops >= 1)
 
 # constraints
 # each circuit can only be visited once
@@ -390,18 +275,10 @@ for (i, j) in sequences
     @constraint(model2, x[i, j] == 1)
 end
 
-# add constraints for begin and end race
-#@constraint(model2, x[home, ind_start] == 1)
-#@constraint(model2, [i in V_1], x[i, ind_start] == 0)
 @constraint(model2, x[ind_end, home] == 1)
 @constraint(model2, [j in V_1], x[ind_end, j] == 0)
-#@constraint(model2, x[ind_start, ind_end] == 0)
 
-emissions_matrix = Matrix(CSV.read("emissions_matrix.csv", DataFrame))
-revenue_loss_matrix = Matrix(CSV.read("revenue_loss_matrix.csv", DataFrame))
-attendance_matrix = Matrix(CSV.read("attendance_matrix.csv", DataFrame))
-obj_values = DataFrame(alpha = Float64[], obj = Float64[])
-results = DataFrame(alpha = Float64[], emissions = Float64[], attendance = Float64[])
+results_tsp = DataFrame(alpha = Float64[], emissions = Float64[], attendance = Float64[])
 
 for alpha in 0 : 0.05 : 1
 
@@ -410,7 +287,7 @@ for alpha in 0 : 0.05 : 1
     flush(stdout)
 
     #objective
-    @objective(model2, Min, sum(sum(x[i, j] * (alpha * emissions_matrix[i, j] - (1 - alpha) * attendance_matrix[i, j]) for i in V) for j in V));
+    @objective(model2, Min, sum(sum(x[i, j] * ((1 - alpha) * emissions_matrix_tsp[i, j] + alpha * 20 * attendance_loss_matrix[i, j]) for i in V) for j in V));
 
     optimize!(model2)
 
@@ -418,32 +295,24 @@ for alpha in 0 : 0.05 : 1
     println("TSP calculation completed for alpha = $alpha")
     flush(stdout)
 
-    obj = objective_value(model2)
-
-    file = open("/home/gbonheur/obj_values_tsp", "a")
-    write(file, "alpha $alpha : $obj \n")
-    close(file)
-
-    # append to obj_values
-    push!(obj_values, [alpha, obj])
-
     x_opt2 = value.(x);
 
     df_full_2 = convert_jump_container_to_df(x_opt2, dim_names=[:i, :j], value_col=:x)
     df_2 = df_full_2[df_full_2.x .== 1, :]
-    CSV.write("/home/gbonheur/result_tsp_$alpha.csv", df_2)
+    CSV.write("/home/gbonheur/result_tsp_attend/result_tsp_$alpha.csv", df_2)
 
     tot_em = 0
     tot_attendance = 0
     for row in eachrow(df_2)
-        tot_em += emissions_matrix[row.i, row.j]
-        tot_attendance += attendance_matrix[row.i, row.j]
+        tot_em += emissions_matrix_tsp[row.i, row.j]
+        tot_attendance += attendance_loss_matrix[row.i, row.j]
     end
-    push!(results, [alpha, tot_em, tot_attendance])
+    push!(results_tsp, [alpha, tot_em, tot_attendance])
+
+    file = open("/home/gbonheur/result_tsp_attend/results", "a")
+    write(file, "$alpha :\t $tot_em \t $tot_attendance \n")
+    close(file)
 end
 
-# write obj_values to file
-CSV.write("/home/gbonheur/obj_values_tsp.csv", obj_values)
-
 # write results to file
-CSV.write("/home/gbonheur/results.csv", results)
+CSV.write("/home/gbonheur/result_tsp_attend/results.csv", results_tsp)
